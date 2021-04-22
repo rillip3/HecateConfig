@@ -156,7 +156,7 @@ class Hecate:
             toWrite.write(key)
         return 'Encrypted file written to %s. '\
             'Encryption key written to hecate_key. '\
-            'KEEP IT SECRET! KEEP IT SAFE!' % toWriteFile
+            'KEEP IT SECRET! KEEP IT SAFE!' % toWriteFilename
 
 
     def getConfig(self, key):
@@ -186,7 +186,7 @@ def process(arguments):
     if arguments.decrypt:
         result['decrypt'] = {}
     # argparse returns a list of lists for files, filenames are
-    # [ [text1], [text2] ]
+    # [ [text1, text2] ]
     # so slice the first (and only) value out of entry
     # Philosophy on order of operations
     # Uploaded files should look just like the local copy.
@@ -195,31 +195,31 @@ def process(arguments):
     # If there are multiple actions on a download, the actions should be
     # performed on the downloaded file.
     # Thus, the order of operations is download, encrypt/decrypt, upload
-    for entry in arguments.file:
+    for entry in arguments.file[0]:
         if arguments.get:
             try:
-                result['download'][entry[0]] = runner.cloud_file(entry[0],
+                result['download'][entry] = runner.cloud_file(entry,
                                                                  download=True)
             except Exception as e:
-                result['download'][entry[0]] = 'Error: %s' % str(e)
+                result['download'][entry] = 'Error: %s' % str(e)
         if arguments.encrypt:
             try:
-                result['encrypt'][entry[0]] = runner.encrypt_file(entry[0],
+                result['encrypt'][entry] = runner.encrypt_file(entry,
                                                                   arguments.inplace)
             except Exception as e:
-                result['encrypt'][entry[0]] = 'Error: %s' % str(e)
+                result['encrypt'][entry] = 'Error: %s' % str(e)
         if arguments.upload:
             try:
-                result['upload'][entry[0]] = runner.cloud_file(entry[0])
+                result['upload'][entry] = runner.cloud_file(entry)
             except Exception as e:
-                result['upload'][entry[0]] = 'Error: %s' % str(e)
+                result['upload'][entry] = 'Error: %s' % str(e)
         if arguments.decrypt:
             try:
-                result['decrypt'][entry[0]] = runner.decrypt_file(entry[0],
+                result['decrypt'][entry] = runner.decrypt_file(entry,
                                                                   arguments.key,
                                                                   arguments.inplace)
             except Exception as e:
-                result['decrypt'][entry[0]] = 'Error: %s' % str(e)
+                result['decrypt'][entry] = 'Error: %s' % str(e)
     return result
 
 if __name__ == "__main__":
