@@ -56,7 +56,6 @@ def process(arguments):
                 result['upload'][entry[0]] = 'Error: %s' % str(e)
         if arguments.decrypt:
             try:
-                import pdb; pdb.set_trace()
                 result['decrypt'][entry[0]] = decrypt_file(entry[0],
                                                            arguments.key,
                                                            arguments.config)
