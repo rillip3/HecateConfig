@@ -4,5 +4,5 @@
  "container": "hecatetest",
  "auth_url": "https://identity.api.rackspacecloud.com/v2.0/tokens",
  "user": "USERNAME",
- "key": "APIKEY"
+ "api_key": "APIKEY"
 }
