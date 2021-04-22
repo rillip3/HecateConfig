@@ -1,3 +1,5 @@
+'''Hecate: a small utility to move config files safely.'''
+
 import os
 import json
 import requests
@@ -6,10 +8,13 @@ from pprint import pprint
 from cryptography.fernet import Fernet
 
 
-
 class Hecate:
-    def __init__(self, configFileName):
+    def __init__(self, configFileName=None):
+        '''The config file name is optional; if it is not passed, all config
+        settings will attempt to be read from environment variables prefaced
+        with hecate_.'''
         self.config = None
+        self.key = None
         if configFileName:
             try:
                 self.config = json.loads(open(configFileName, 'r').read())
@@ -17,7 +22,11 @@ class Hecate:
                 raise ValueError('Unable to read config file: %s' % str(e))
             
 
-    def _rs_openstack_auth_helper(self, auth, headers={}):
+    def _rs_openstack_auth_helper(self, headers={}):
+        '''
+        This method generates an auth token for Rackspace Openstack. It will update the headers
+        with the X-Auth-Token header pre-filled if they are passed.
+        '''
         authURL = self.getConfig('auth_url')
         authHeaders = {"Content-type": "application/json"}
         data = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
@@ -30,6 +39,9 @@ class Hecate:
 
 
     def _rs_openstack_upload_helper(self, filename, headers):
+        '''This method uploads files to Rackspace Openstack.
+        It will automatically make the specified container for you if it does not exist.
+        '''
         data = ''
         with open(filename, 'r') as message:
             data = message.read()
@@ -52,6 +64,7 @@ class Hecate:
 
 
     def _rs_openstack_download_helper(self, filename, headers):
+        '''This method downloads files to Rackspace Openstack.'''
         url = self.getConfig('url')
         container = self.getConfig('container')
         results = requests.get(url + '/' + container + '/' + filename,
@@ -63,12 +76,14 @@ class Hecate:
         return 'Success'
 
 
-    def cloud_file(self, filename, auth=False, download=False):
+    def cloud_file(self, filename, download=False):
+        '''This method quarterbacks cloud operations. It gets a helper to gather the auth token
+        and then either calls the upload or download helper.'''
         toReturn = ''
         provider = self.getConfig('provider')
         if provider.lower() == 'rackspace':
             headers = self.getConfig('headers')
-            self._rs_openstack_auth_helper(auth, headers)
+            self._rs_openstack_auth_helper(headers)
             if download:
                 toReturn = self._rs_openstack_download_helper(filename, headers)
             else:
@@ -76,12 +91,12 @@ class Hecate:
         else:
             # the developer is using Rackspace Openstack; if others wish to write
             # their own authentication helpers, pull requests are accepted.
-            raise ValueError('Automated auth for provider '
-                            '%s is not available.' % provider)
+            raise NotImplementedError('The provider %s is not available.' % provider)
         return toReturn
 
 
     def decrypt_file(self, filename, keyfile, inplace):
+        '''This method decrypts the given file. If inplace is used, the file is destructively modified to have the unencrypted output.'''
         # everything is converted to bytes if a string so we can use one write method across python2 and 3
         message = ''
         key = ''
@@ -116,6 +131,9 @@ class Hecate:
 
 
     def encrypt_file(self, filename, inplace):
+        '''This method decrypts the given file. If inplace is used, the file is destructively modified to have the unencrypted output.
+        The encryption key is written to disk as filename_key or filename_encrypted_key, depending on if inplace was set.
+        The key file is always destructively modified to have the just-used encryption key.'''
         # bytes are used for everything so that one write call can be used between python 2 and 3
         message = ''
         with open(filename, 'rb') as toRead:
@@ -123,7 +141,10 @@ class Hecate:
         if not message:
             raise ValueError('Error: file named %s was empty.' % filename)
         # generate a key for encryption and decryption
-        key = Fernet.generate_key()
+        key = self.key
+        if not key:
+            key = Fernet.generate_key()
+            self.key = key
         fernet = Fernet(key)
         encMessage = fernet.encrypt(message)
         toWriteFilename = filename
@@ -131,15 +152,15 @@ class Hecate:
             toWriteFilename = filename + '_encrypted'
         with open(toWriteFilename, 'wb') as toWrite:
             toWrite.write(encMessage)
-        with open(toWriteFilename + '_key', 'wb') as toWrite:
+        with open('hecate_key', 'wb') as toWrite:
             toWrite.write(key)
-        return 'Encrypted file written to %s.'\
-            'Encryption key written to %s.'\
-            ' KEEP IT SECRET! KEEP IT SAFE!' % (toWriteFilename,
-                                                toWriteFilename + '_key')
+        return 'Encrypted file written to %s. '\
+            'Encryption key written to hecate_key. '\
+            'KEEP IT SECRET! KEEP IT SAFE!' % toWriteFile
 
 
     def getConfig(self, key):
+        '''This helper method handles reading config items from either the config file or the environment variables as needed.'''
         value = ''
         if self.config:  # if we haven't read the config file yet
             value = self.config.get(key)
@@ -150,6 +171,7 @@ class Hecate:
         return value
 
 def process(arguments):
+    '''Takes the command line arguments and calls the appropriate Hecate methods.'''
     if not arguments.file:
         return 'No files chosen, use -f, --file to specify filenames (space '\
                'delineated).'
@@ -201,6 +223,9 @@ def process(arguments):
     return result
 
 if __name__ == "__main__":
+    '''
+    Just do some parsinng here, then hand off the parsed arguments to the process method to do the actual work.
+    '''
     parser = argparse.ArgumentParser(
         description='A utility to encrypt/decrypt/upload config files safely')
     enOrDe = parser.add_mutually_exclusive_group()
