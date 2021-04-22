@@ -2,9 +2,7 @@
  "headers": {"Content-Type": "text/html"},
  "url": "https://storage101.dfw1.clouddrive.com/v1/ENTITY_ID",
  "container": "hecatetest",
- "auth": {
-          "url": "https://identity.api.rackspacecloud.com/v2.0/tokens",
-          "user": "USERNAME",
-          "key": "APIKEY"
-         }
+ "auth_url": "https://identity.api.rackspacecloud.com/v2.0/tokens",
+ "user": "USERNAME",
+ "key": "APIKEY"
 }

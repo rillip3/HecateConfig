@@ -1,3 +1,4 @@
+import os
 import json
 import requests
 import argparse
@@ -9,12 +10,6 @@ def process(arguments):
     if not arguments.file:
         return 'No files chosen, use -f, --file to specify filenames (space '\
                'delineated).'
-    if arguments.upload and not arguments.config:
-        return 'No config file provided with upload credentials, '\
-               'use -c, --config to specify the json file'
-    if arguments.decrypt and not arguments.key:
-        return 'No key file provided to decrypt the file, '\
-               'use -k, --key to specify the encryption key file'
     result = {}
     if arguments.encrypt:
         result['encrypt'] = {}
@@ -58,17 +53,17 @@ def process(arguments):
             try:
                 result['decrypt'][entry[0]] = decrypt_file(entry[0],
                                                            arguments.key,
-                                                           arguments.config)
+                                                           arguments.inplace)
             except Exception as e:
                 result['decrypt'][entry[0]] = 'Error: %s' % str(e)
     return result
 
 
 def _rs_openstack_auth_helper(auth, headers={}):
-    authURL = auth.get('url')
+    authURL = getConfig('auth_url')
     authHeaders = {"Content-type": "application/json"}
     data = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
-        "username": auth.get('user'), "apiKey": auth.get('key')}}}
+        "username": getConfig('user'), "apiKey": getConfig('key')}}}
     token = requests.post(authURL, json=data, headers=authHeaders)
     toReturn = token.json().get('access', {}).get('token', {}).get('id')
     if headers:
@@ -80,8 +75,8 @@ def _rs_openstack_upload_helper(filename, headers, config):
     data = ''
     with open(filename, 'r') as message:
         data = message.read()
-    url = config.get('url')
-    container = config.get('container')
+    url = getConfig('url')
+    container = getConfig('container')
     results = requests.put(url + '/' + container + '/' + filename,
                            data=data,
                            headers=headers)
@@ -91,9 +86,9 @@ def _rs_openstack_upload_helper(filename, headers, config):
     return 'Success'
 
 
-def _rs_openstack_download_helper(filename, headers, config):
-    url = config.get('url')
-    container = config.get('container')
+def _rs_openstack_download_helper(filename, headers):
+    url = getConfig('url')
+    container = getConfig('container')
     results = requests.get(url + '/' + container + '/' + filename,
                            headers=headers)
     if results.status_code != 200:
@@ -104,21 +99,16 @@ def _rs_openstack_download_helper(filename, headers, config):
     return 'Success'
 
 
-def cloud_file(filename, config, auth=False, download=False):
+def cloud_file(filename, auth=False, download=False):
     toReturn = ''
-    configs = json.loads(open(config, 'r').read())
-    if not configs:
-        raise ValueError('Got empty config file.')
-    provider = configs.get('provider')
+    provider = getConfig('provider')
     if provider.lower() == 'rackspace':
-        headers = configs.get('headers')
-        auth = configs.get('auth', {})
+        headers = getConfig('headers')
         _rs_openstack_auth_helper(auth, headers)
         if download:
-            toReturn = _rs_openstack_download_helper(filename, headers,
-                                                     configs)
+            toReturn = _rs_openstack_download_helper(filename, headers)
         else:
-            toReturn = _rs_openstack_upload_helper(filename, headers, configs)
+            toReturn = _rs_openstack_upload_helper(filename, headers)
     else:
         # the developer is using Rackspace Openstack; if others wish to write
         # their own authentication helpers, pull requests are accepted.
@@ -134,10 +124,13 @@ def decrypt_file(filename, keyfile, inplace):
         message = toRead.read()
     if not message:
         raise ValueError('Error: file named %s was empty.' % filename)
-    with open(keyfile, 'r') as toRead:
-        key = toRead.read()
+    if keyfile:
+        with open(keyfile, 'r') as toRead:
+            key = toRead.read()
+    else:
+        key = os.getenv('hecate_key')
     if not key:
-        raise ValueError('Error: file named %s was empty.' % filename)
+        raise ValueError('No key specified; either use -k, --key or set the environment variable')
     # we have a file and a key, let's decrypt
     fernet = Fernet(key)
     decrypted = fernet.decrypt(message).decode()
@@ -174,6 +167,21 @@ def encrypt_file(filename, inplace):
            'Encryption key written to %s.'\
            ' KEEP IT SECRET! KEEP IT SAFE!' % (toWriteFilename,
                                                toWriteFilename + '_key')
+
+
+def getConfig(key):
+    configs = ''
+    try:
+        configs = json.loads(open(config, 'r').read())
+    except Exception:
+        pass
+    if configs:
+        return configs.get(key)
+    else:
+        value = os.getenv('hecate_' + key)
+        if not value:
+            raise ValueError('Could not find %s in config file or environment variables. Either update the config file, or set hecate_%s' % (key,key))
+        return value
 
 
 if __name__ == "__main__":
