@@ -68,7 +68,7 @@ python3 hecate.py -d -g -f testfile1 testfile2 -c config.json
 usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-k KEY] [-i]
                  [-c CONFIG]
 
-A utility to encrypt/decrypt/upload config files safely
+A utility to encrypt/decrypt/upload files safely
 
 optional arguments:
   -h, --help            show this help message and exit
