@@ -227,7 +227,7 @@ if __name__ == "__main__":
     Just do some parsinng here, then hand off the parsed arguments to the process method to do the actual work.
     '''
     parser = argparse.ArgumentParser(
-        description='A utility to encrypt/decrypt/upload config files safely')
+        description='A utility to encrypt/decrypt/upload files safely')
     enOrDe = parser.add_mutually_exclusive_group()
     enOrDe.add_argument('-e', '--encrypt', action='store_true',
                         help='Flag; encrypt the file.')
