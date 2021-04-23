@@ -47,14 +47,14 @@ request in both Python 2.7.16 and Python 3.x.
 Hecate has been tested on Python 2.7.16 and Python 3.7.3, but should run
 on any Python3 version without isssue.
 
-#Requirements
+# Requirements
 Hecate only requires the requests library. You can run
 
 pip install -r requirements.txt
 
 To install it on most systems.
 
-#Examples
+# Examples
 
 Encrypting a file and uploading it:
 python3 hecate.py -e -u -f testfile -c config.json
@@ -64,7 +64,7 @@ python3 hecate.py -d -g -f testfile1 testfile2 -c config.json
 
 
 
-#Usage
+# Usage
 usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-k KEY] [-i]
                  [-c CONFIG]
 
@@ -86,7 +86,7 @@ optional arguments:
                         Json credentials file required for uploadsand
                         downloads.
 
-#LICENSE
+# LICENSE
 
 Copyright 2021 Philip Eatherington
 
