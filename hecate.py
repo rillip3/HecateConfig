@@ -25,7 +25,8 @@ class Hecate:
         '''
         This method generates an auth token for Rackspace Openstack. It will
         update the headers with the X-Auth-Token header pre-filled if they are
-        passed.
+        passed. As of this writing (2021-04-23) Rackspace public cloud supports
+        v2 of auth
         '''
         authURL = self.getConfig('auth_url')
         authHeaders = {"Content-type": "application/json"}
@@ -33,12 +34,44 @@ class Hecate:
             "username": self.getConfig('user'),
             "apiKey": self.getConfig('api_key')}}}
         token = requests.post(authURL, json=data, headers=authHeaders)
+        token.raise_for_status()
         toReturn = token.json().get('access', {}).get('token', {}).get('id')
         if headers:
             headers['X-Auth-Token'] = toReturn
         return toReturn
 
-    def _rs_openstack_upload_helper(self, filename, headers):
+    def _openstack_auth_helper(self, headers={}):
+        '''
+        This method generates an auth token for generic Openstack.
+        It will update the headers with the X-Auth-Token header pre-filled
+        if they are passed. As of this writing (2021-04-23) Openstack is on
+        auth v3.
+        '''
+        authURL = self.getConfig('auth_url')
+        authHeaders = {"Content-type": "application/json"}
+        data = {"auth": {
+                    "identity": {
+                        "methods": ["password"],
+                        "password": {
+                            "user": {
+                                "name": self.getConfig('user'),
+                                "domain": {
+                                    "name": "Default"
+                                },
+                                "password": self.getConfig('api_key')
+                            }
+                        }
+                    }
+               }
+        }
+        token = requests.post(authURL, json=data, headers=authHeaders)
+        token.raise_for_status()
+        toReturn = token.headers.get('X-Subject-Token')
+        if headers:
+            headers['X-Auth-Token'] = toReturn
+        return toReturn
+
+    def _openstack_upload_helper(self, filename, headers):
         '''This method uploads files to Rackspace Openstack.
         It will automatically make the specified container for you if it does
         not exist.
@@ -55,7 +88,9 @@ class Hecate:
                                              headers=headers)
         except Exception as e:
             raise ValueError('Could not create container: %s' % str(e))
-        if container_results.raise_for_status():
+        try:
+            container_results.raise_for_status()
+        except Exception:
             raise ValueError('Got an unexpected code when creating container:'
                              ' %s %s' % (container_results.status_code,
                                          container_results.text))
@@ -68,7 +103,7 @@ class Hecate:
                                                    results.status_code))
         return 'Success'
 
-    def _rs_openstack_download_helper(self, filename, headers):
+    def _openstack_download_helper(self, filename, headers):
         '''This method downloads files to Rackspace Openstack.'''
         url = self.getConfig('url')
         container = self.getConfig('container')
@@ -82,20 +117,37 @@ class Hecate:
             toWrite.write(results.content)
         return 'Success'
 
+    def _rs_openstack_download_helper(self, filename, headers):
+        # only auth is not reverse compatible with openstack v3 vs v2
+        return self._openstack_download_helper(filename, headers)
+
+    def _rs_openstack_upload_helper(self, filename, headers):
+        # only auth is not reverse compatible with openstack v3 vs v2
+        return self._openstack_upload_helper(filename, headers)
+
     def cloud_file(self, filename, download=False):
         '''This method quarterbacks cloud operations. It gets a helper to
         gather the auth token and then either calls the upload or download
         helper.'''
         toReturn = ''
         provider = self.getConfig('provider')
+        headers = self.getConfig('headers')
         if provider.lower() == 'rackspace':
-            headers = self.getConfig('headers')
+            # supports Rackspace Openstack on auth v2
             self._rs_openstack_auth_helper(headers)
             if download:
                 toReturn = self._rs_openstack_download_helper(filename,
                                                               headers)
             else:
                 toReturn = self._rs_openstack_upload_helper(filename, headers)
+        elif provider.lower() == 'openstack':
+            self._openstack_auth_helper(headers)
+            if download:
+                toReturn = self._openstack_download_helper(filename,
+                                                           headers)
+            else:
+                toReturn = self._openstack_upload_helper(filename, headers)
+            # supports Openstack on auth v3
         else:
             # the developer is using Rackspace Openstack; if others wish to
             # write their own authentication helpers, pull requests are
