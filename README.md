@@ -69,7 +69,7 @@ python3 hecate.py -d -g -f testfile1 testfile2 -c config.json
 
 
 # Usage
-usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-k KEY] [-i]
+usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-k [KEY]] [-i]
                  [-c CONFIG]
 
 A utility to encrypt/decrypt/upload files safely
@@ -79,15 +79,20 @@ optional arguments:
   -e, --encrypt         Flag; encrypt the file.
   -d, --decrypt         Flag; decrypt the file.
   -u, --upload          Flag; upload the file.
-  -g, --get             Optional; download the file.
+  -g, --get             Flag; download the file.
   -f FILE [FILE ...], --file FILE [FILE ...]
                         File paths to action on.
-  -k KEY, --key KEY     Key required for decrypting. 
+  -k [KEY], --key [KEY]
+                        The key to use during encryption or decryption. If
+                        specified without a value, environment variables will
+                        be checked. If not specified for encryption, a new key
+                        will be generated and saved to disk. Required for
+                        decryption.
   -i, --inplace         Flag; Encrypt or decrypt the file in-place.self
                         implies the file's contents are destructively
                         modified.
   -c CONFIG, --config CONFIG
-                        Json credentials file required for uploadsand
+                        Json credentials file required for uploads and
                         downloads.
 
 # LICENSE

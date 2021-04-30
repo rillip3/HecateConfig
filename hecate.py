@@ -209,7 +209,7 @@ class Hecate:
             self.fromFile = True
         key = self.key  # get previous key if available
         if not key:  # no previous key available
-            if keyfile is '':  # keyfile was sent by args, but is empty
+            if keyfile == '':  # keyfile was sent by args, but is empty
                 key = self.getConfig('encrypt_key')
                 self.fromFile = False
                 if not key:
@@ -220,7 +220,7 @@ class Hecate:
                                      'the option to use an auto-generated key')
             elif keyfile:  # a keyfile was specified and is not empty
                 with open(keyfile, 'rb') as toRead:
-                          key = toRead.read()
+                    key = toRead.read()
             else:  # a keyfile was not specified, make one
                 key = Fernet.generate_key()
             self.key = key  # set the key for future runs
@@ -237,7 +237,7 @@ class Hecate:
             toWriteFilename = filename + '_encrypted'
         with open(toWriteFilename, 'wb') as toWrite:
             toWrite.write(encMessage)
-        toReturn = 'Encrypted file written to %s. ' %toWriteFilename
+        toReturn = 'Encrypted file written to %s. ' % toWriteFilename
         if self.fromFile:
             with open('hecate_key', 'wb') as toWrite:
                 toWrite.write(key)
@@ -303,7 +303,7 @@ def process(arguments):
                 # they specified -k but did not gice a filename
                 keyfile = ''
             try:
-               result['encrypt'][entry] = runner.encrypt_file(
+                result['encrypt'][entry] = runner.encrypt_file(
                     entry, arguments.inplace, keyfile=keyfile)
             except Exception as e:
                 result['encrypt'][entry] = 'Error: %s' % str(e)
@@ -342,10 +342,10 @@ if __name__ == "__main__":
     # const means that if -k is passed with no value, we can detect it
     parser.add_argument('-k', '--key',
                         help='The key to use during encryption or decryption. '
-                             'If specified without a value, environment variables '
-                             'will be checked. If not specified for encryption, '
-                             'a new key will be generated and saved to disk. '
-                             'Required for decryption.',
+                             'If specified without a value, environment '
+                             ' variables will be checked. If not specified '
+                             'for encryption, a new key will be generated '
+                             'and saved to disk. Required for decryption.',
                         nargs='?', const='')
     parser.add_argument('-i', '--inplace', action='store_true',
                         help="Flag; Encrypt or decrypt the file in-place."
