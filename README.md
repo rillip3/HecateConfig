@@ -13,9 +13,9 @@ Download, Encrypt, Decrypt, Upload.
 Download/upload are mutually exlcusive. Encrypt/decrypt are mutually
 exclusive.  As such, if you use the -i option, the file you upload will
 always match your local file. With download, the final file will be in the
-state you specified. If you chose not to use -i, be aware that an
-unencrypted file will be uploaded, and an encrypted version left on your
-disk with the name filename_encrypted.
+state you specified. If you chose not to use -i, be aware that the
+encyrpted file (named filename_encrypted) will be uploaded instead of the
+original file name.
 
 Note that using -i will destructively modify the file. If you have files
 you do not wish to risk destructively modifying, you can run without -i and

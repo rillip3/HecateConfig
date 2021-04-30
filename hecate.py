@@ -326,7 +326,11 @@ def process(arguments):
         if arguments.upload:
             try:
                 if entry not in skipFiles:
-                    result['upload'][entry] = runner.cloud_file(entry)
+                    if entry in result.get('encrypt') and arguments.inplace:
+                        result['upload'][entry] = runner.cloud_file(entry)
+                    else:
+                        name = entry + '_encrypted'
+                        result['upload'][name] = runner.cloud_file(name)
                 else:
                     result['upload'][entry] = 'Skipped due to previous error.'
             except Exception as e:
