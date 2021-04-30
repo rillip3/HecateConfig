@@ -188,7 +188,12 @@ class Hecate:
             except Exception:
                 raise ValueError('Could not turn key into bytes!')
         # we have a file and a key, let's decrypt
-        fernet = Fernet(key)
+        fernet = None
+        try:
+            fernet = Fernet(key)
+        except TypeError:
+            raise ValueError('Unable to create key from given value;'
+                             ' ensure the key has not been truncated')
         decrypted = fernet.decrypt(message)
         toWriteFilename = filename
         if not inplace:
@@ -230,7 +235,12 @@ class Hecate:
         if not message:
             raise ValueError('Error: file named %s was empty.' % filename)
         # generate a key for encryption and decryption
-        fernet = Fernet(key)
+        fernet = None
+        try:
+            fernet = Fernet(key)
+        except TypeError:
+            raise ValueError('Unable to create key from given value;'
+                             ' ensure the key has not been truncated')
         encMessage = fernet.encrypt(message)
         toWriteFilename = filename
         if not inplace:
