@@ -268,12 +268,13 @@ def process(arguments):
                'delineated).'
     runner = Hecate(arguments.config)
     result = {}
+    skipFiles = []
+    if arguments.get:
+        result['download'] = {}
     if arguments.encrypt:
         result['encrypt'] = {}
     if arguments.upload:
         result['upload'] = {}
-    if arguments.get:
-        result['download'] = {}
     if arguments.decrypt:
         result['decrypt'] = {}
     # argparse returns a list of lists for files, filenames are
@@ -293,6 +294,7 @@ def process(arguments):
                                                               download=True)
             except Exception as e:
                 result['download'][entry] = 'Error: %s' % str(e)
+                skipFiles.append(entry)
         if arguments.encrypt:
             # if they specified a key, send it
             keyfile = None  # if they did not sent -k, send None
@@ -303,21 +305,33 @@ def process(arguments):
                 # they specified -k but did not gice a filename
                 keyfile = ''
             try:
-                result['encrypt'][entry] = runner.encrypt_file(
-                    entry, arguments.inplace, keyfile=keyfile)
+                if entry not in skipFiles:
+                    result['encrypt'][entry] = runner.encrypt_file(
+                        entry, arguments.inplace, keyfile=keyfile)
+                else:
+                    result['encrypt'][entry] = 'Skipped due to previous error.'
             except Exception as e:
                 result['encrypt'][entry] = 'Error: %s' % str(e)
+                skipFiles.append(entry)
         if arguments.upload:
             try:
-                result['upload'][entry] = runner.cloud_file(entry)
+                if entry not in skipFiles:
+                    result['upload'][entry] = runner.cloud_file(entry)
+                else:
+                    result['upload'][entry] = 'Skipped due to previous error.'
             except Exception as e:
                 result['upload'][entry] = 'Error: %s' % str(e)
+                skipFiles.append(entry)
         if arguments.decrypt:
             try:
-                result['decrypt'][entry] = runner.decrypt_file(
-                    entry, arguments.key, arguments.inplace)
+                if entry not in skipFiles:
+                    result['decrypt'][entry] = runner.decrypt_file(
+                        entry, arguments.key, arguments.inplace)
+                else:
+                    result['encrypt'][entry] = 'Skipped due to previous error.'
             except Exception as e:
                 result['decrypt'][entry] = 'Error: %s' % str(e)
+                skipFiles.append(entry)
     return result
 
 
