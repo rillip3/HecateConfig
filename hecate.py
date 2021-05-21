@@ -15,6 +15,10 @@ class Hecate:
         with hecate_.'''
         self.config = None
         self.key = None
+        # this variable is used later by encrypt to determine whether or not
+        # to write the key to disk; if it is read from disk or genereated
+        # automatically, we'll write to disk. If it was read from ENV, skip
+        self.fromFile = None
         if configFileName:
             try:
                 self.config = json.loads(open(configFileName, 'r').read())
@@ -193,24 +197,39 @@ class Hecate:
             toWrite.write(decrypted)
         return 'Decrypted file written to %s.' % toWriteFilename
 
-    def encrypt_file(self, filename, inplace):
+    def encrypt_file(self, filename, inplace, keyfile=None):
         '''This method decrypts the given file. If inplace is used, the file is
         destructively modified to have the unencrypted output.
         The encryption key is written to disk as hecate_key.
         The key file is always destructively modified to have the just-used
         encryption key.'''
-        # bytes are used for everything so that one write call can be used
-        # between python 2 and 3
+        if self.fromFile is None:
+            # this starts as None. On the first run, set it to true, unless we
+            # read from the environment variable. Only set it on the first run.
+            self.fromFile = True
+        key = self.key  # get previous key if available
+        if not key:  # no previous key available
+            if keyfile == '':  # keyfile was sent by args, but is empty
+                key = self.getConfig('encrypt_key')
+                self.fromFile = False
+                if not key:
+                    raise ValueError('-k, --key was specified without a file '
+                                     'but hecate_encrypt_key environment '
+                                     'variable was not set. Either specify '
+                                     'a file, set the variable, or remove '
+                                     'the option to use an auto-generated key')
+            elif keyfile:  # a keyfile was specified and is not empty
+                with open(keyfile, 'rb') as toRead:
+                    key = toRead.read()
+            else:  # a keyfile was not specified, make one
+                key = Fernet.generate_key()
+            self.key = key  # set the key for future runs
         message = ''
         with open(filename, 'rb') as toRead:
             message = toRead.read()
         if not message:
             raise ValueError('Error: file named %s was empty.' % filename)
         # generate a key for encryption and decryption
-        key = self.key
-        if not key:
-            key = Fernet.generate_key()
-            self.key = key
         fernet = Fernet(key)
         encMessage = fernet.encrypt(message)
         toWriteFilename = filename
@@ -218,11 +237,13 @@ class Hecate:
             toWriteFilename = filename + '_encrypted'
         with open(toWriteFilename, 'wb') as toWrite:
             toWrite.write(encMessage)
-        with open('hecate_key', 'wb') as toWrite:
-            toWrite.write(key)
-        return 'Encrypted file written to %s. '\
-            'Encryption key written to hecate_key. '\
-            'KEEP IT SECRET! KEEP IT SAFE!' % toWriteFilename
+        toReturn = 'Encrypted file written to %s. ' % toWriteFilename
+        if self.fromFile:
+            with open('hecate_key', 'wb') as toWrite:
+                toWrite.write(key)
+            toReturn = toReturn + 'Encryption key written to hecate_key. '\
+                                  'KEEP IT SECRET! KEEP IT SAFE!'
+        return toReturn
 
     def getConfig(self, key):
         '''This helper method handles reading config items from either the
@@ -273,9 +294,17 @@ def process(arguments):
             except Exception as e:
                 result['download'][entry] = 'Error: %s' % str(e)
         if arguments.encrypt:
+            # if they specified a key, send it
+            keyfile = None  # if they did not sent -k, send None
+            if arguments.key and arguments.key != '':
+                # they specified -k and gave the filename
+                keyfile = arguments.key
+            elif arguments.key == '':
+                # they specified -k but did not gice a filename
+                keyfile = ''
             try:
                 result['encrypt'][entry] = runner.encrypt_file(
-                    entry, arguments.inplace)
+                    entry, arguments.inplace, keyfile=keyfile)
             except Exception as e:
                 result['encrypt'][entry] = 'Error: %s' % str(e)
         if arguments.upload:
@@ -307,16 +336,23 @@ if __name__ == "__main__":
     upOrDown.add_argument('-u', '--upload', action='store_true',
                           help='Flag; upload the file.')
     upOrDown.add_argument('-g', '--get', action='store_true',
-                          help='Optional; download the file.')
+                          help='Flag; download the file.')
     parser.add_argument('-f', '--file', action='append', nargs='+',
                         help='File paths to action on.')
-    parser.add_argument('-k', '--key', help='Key required for decrypting.')
+    # const means that if -k is passed with no value, we can detect it
+    parser.add_argument('-k', '--key',
+                        help='The key to use during encryption or decryption. '
+                             'If specified without a value, environment '
+                             ' variables will be checked. If not specified '
+                             'for encryption, a new key will be generated '
+                             'and saved to disk. Required for decryption.',
+                        nargs='?', const='')
     parser.add_argument('-i', '--inplace', action='store_true',
                         help="Flag; Encrypt or decrypt the file in-place."
                              "self implies the file's contents are "
                              "destructively modified.")
     parser.add_argument('-c', '--config',
-                        help='Json credentials file required for uploads'
+                        help='Json credentials file required for uploads '
                              'and downloads.')
     arguments = parser.parse_args()
     pprint(process(arguments))
