@@ -1,9 +1,12 @@
 # Hecate
-A python utility for safely conveying config files where they need to be.
+A python utility for safely conveying files where they need to be.
 
-Hecate will encrypt files, upload files to cloud files, and decrypt files.
+This was originally created with the intention of sending plain text config
+files, but has since been updated to allow binary files as well.
+
+Hecate will encrypt files, upload files to cloud storage, and decrypt files.
 The typical use pattern is to run Hecate with encrypt and upload options
-enabled in one location, then use the download/decrypt option in another.
+enabled in one location, then use the download and decrypt option in another.
 
 It is recommend to use the -i or --inplace option when chaining actions.
 The order of operations is:
