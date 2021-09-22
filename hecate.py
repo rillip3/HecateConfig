@@ -81,7 +81,7 @@ class Hecate:
         not exist.
         '''
         data = ''
-        with open(filename, 'r') as message:
+        with open(filename, 'rb') as message:
             data = message.read()
         url = self.getConfig('url')
         container = self.getConfig('container')
