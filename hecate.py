@@ -2,7 +2,6 @@
 
 import os
 import json
-from xml.etree.ElementTree import QName
 import requests
 import argparse
 from pprint import pprint
