@@ -11,7 +11,7 @@ enabled in one location, then use the download and decrypt option in another.
 It is recommend to use the -i or --inplace option when chaining actions.
 The order of operations is:
 
-Download, Encrypt, Decrypt, Upload.
+Download, Encrypt, Decrypt, Upload, Remove.
 
 Download/upload are mutually exlcusive. Encrypt/decrypt are mutually
 exclusive.  As such, if you use the -i option, the file you upload will
@@ -70,9 +70,11 @@ python3 hecate.py -e -i -u -f testfile -c config.json
 Decrypting multiple files after downloading:
 python3 hecate.py -d -g -f testfile1 testfile2 -c config.json
 
+Remove file:
+python3 hecate.py -r testfile1 -c config.json
 
 # Usage
-usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-k [KEY]] [-i]
+usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-r FILE [FILE ...]] [-k [KEY]] [-i]
                  [-c CONFIG]
 
 A utility to encrypt/decrypt/upload files safely
@@ -97,6 +99,8 @@ optional arguments:
   -c CONFIG, --config CONFIG
                         Json credentials file required for uploads and
                         downloads.
+  -r FILE [FILE ...], --remove FILE [FILE ...]
+                        File to remove.
 
 # LICENSE
 
