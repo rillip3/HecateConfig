@@ -74,7 +74,7 @@ Remove file:
 python3 hecate.py -r testfile1 -c config.json
 
 # Usage
-usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-r FILE [FILE ...]] [-k [KEY]] [-i]
+usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-r FILE [FILE ...]] [-k [KEY]] [-i] [-sc CONTAINER_NAME] [-rc CONTAINER_NAME]
                  [-c CONFIG]
 
 A utility to encrypt/decrypt/upload files safely
@@ -101,10 +101,14 @@ optional arguments:
                         downloads.
   -r FILE [FILE ...], --remove FILE [FILE ...]
                         File to remove.
+  -rc CONTAINER_NAME, --removeContainer CONTAINER_NAME
+                        Container to remove.
+  -sc CONTAINER_NAME, --specifyContainer CONTAINER_NAME
+                        Container to use when uploading file(s) will override config.json's container key.
 
 # LICENSE
 
-Copyright 2021 Philip Eatherington
+Copyright 2022 Philip Eatherington
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
