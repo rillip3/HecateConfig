@@ -15,10 +15,6 @@ class Hecate:
         with hecate_.'''
         self.config = None
         self.key = None
-        # this variable is used later by encrypt to determine whether or not
-        # to write the key to disk; if it is read from disk or genereated
-        # automatically, we'll write to disk. If it was read from ENV, skip
-        self.fromFile = None
         if configFileName:
             try:
                 self.config = json.loads(open(configFileName, 'r').read())
@@ -179,12 +175,12 @@ class Hecate:
         if not key:
             raise ValueError('No key specified; either use -k, --key or set '
                              'the environment variable hecate_decrypt_key')
-        try:
-            key = bytes(key, 'utf-8')
-        except Exception:
+        # python3 read is already bytes, python2 read string and must be
+        # converted
+        import pdb; pdb.set_trace()
+        if type(key) == str:
             try:
                 key = key.encode()
-                # python 2 work around; bytes() == str() in python 2
             except Exception:
                 raise ValueError('Could not turn key into bytes!')
         # we have a file and a key, let's decrypt
@@ -208,15 +204,11 @@ class Hecate:
         The encryption key is written to disk as hecate_key.
         The key file is always destructively modified to have the just-used
         encryption key.'''
-        if self.fromFile is None:
-            # this starts as None. On the first run, set it to true, unless we
-            # read from the environment variable. Only set it on the first run.
-            self.fromFile = True
+        newKey = False
         key = self.key  # get previous key if available
         if not key:  # no previous key available
             if keyfile == '':  # keyfile was sent by args, but is empty
                 key = self.getConfig('encrypt_key')
-                self.fromFile = False
                 if not key:
                     raise ValueError('-k, --key was specified without a file '
                                      'but hecate_encrypt_key environment '
@@ -227,6 +219,7 @@ class Hecate:
                 with open(keyfile, 'rb') as toRead:
                     key = toRead.read()
             else:  # a keyfile was not specified, make one
+                newKey = True
                 key = Fernet.generate_key()
             self.key = key  # set the key for future runs
         message = ''
@@ -248,7 +241,7 @@ class Hecate:
         with open(toWriteFilename, 'wb') as toWrite:
             toWrite.write(encMessage)
         toReturn = 'Encrypted file written to %s. ' % toWriteFilename
-        if self.fromFile:
+        if newKey:
             with open('hecate_key', 'wb') as toWrite:
                 toWrite.write(key)
             toReturn = toReturn + 'Encryption key written to hecate_key. '\
