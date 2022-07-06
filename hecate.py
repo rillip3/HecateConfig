@@ -177,7 +177,6 @@ class Hecate:
                              'the environment variable hecate_decrypt_key')
         # python3 read is already bytes, python2 read string and must be
         # converted
-        import pdb; pdb.set_trace()
         if type(key) == str:
             try:
                 key = key.encode()
