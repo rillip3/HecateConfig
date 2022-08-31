@@ -372,7 +372,7 @@ def process(arguments):
     if not (arguments.file or arguments.remove or arguments.newContainer
             or arguments.removeContainer):
         return 'Please choose at least one option.'
-    runner = Hecate(arguments.config)
+    taskHandler = Hecate(arguments.config)
     result = {}
     skipFiles = []
     if arguments.get:
@@ -405,7 +405,7 @@ def process(arguments):
     if arguments.newContainer:
         try:
             if arguments.newContainer not in skipFiles:
-                result['newContainer'][arguments.newContainer] = runner.cloud_container_add(
+                result['newContainer'][arguments.newContainer] = taskHandler.cloud_container_add(
                     arguments.newContainer)
             else:
                 result['newContainer'][arguments.newContainer] = 'Skipped due to previous error.'
@@ -416,7 +416,7 @@ def process(arguments):
         for entry in arguments.file[0]:
             if arguments.get:
                 try:
-                    result['download'][entry] = runner.cloud_file(entry,
+                    result['download'][entry] = taskHandler.cloud_file(entry,
                                                                 download=True)
                 except Exception as e:
                     result['download'][entry] = 'Error: %s' % str(e)
@@ -432,7 +432,7 @@ def process(arguments):
                     keyfile = ''
                 try:
                     if entry not in skipFiles:
-                        result['encrypt'][entry] = runner.encrypt_file(
+                        result['encrypt'][entry] = taskHandler.encrypt_file(
                             entry, arguments.inplace, keyfile=keyfile)
                     else:
                         result['encrypt'][entry] = 'Skipped due to previous error.'
@@ -443,12 +443,12 @@ def process(arguments):
                 try:
                     if entry not in skipFiles:
                         if arguments.inplace or not result.get('encrypt'):
-                            result['upload'][entry] = runner.cloud_file(entry,
+                            result['upload'][entry] = taskHandler.cloud_file(entry,
                                 container = arguments.specifyContainer)
                         # they have not specified inplace but did specify encrypt
                         else:
                             name = entry + '_encrypted'
-                            result['upload'][name] = runner.cloud_file(name,
+                            result['upload'][name] = taskHandler.cloud_file(name,
                                 container = arguments.specifyContainer)
                     else:  # skip the file
                         result['upload'][entry] = 'Skipped due to previous error.'
@@ -458,7 +458,7 @@ def process(arguments):
             if arguments.decrypt:
                 try:
                     if entry not in skipFiles:
-                        result['decrypt'][entry] = runner.decrypt_file(
+                        result['decrypt'][entry] = taskHandler.decrypt_file(
                             entry, arguments.key, arguments.inplace)
                     else:
                         result['encrypt'][entry] = 'Skipped due to previous error.'
@@ -469,7 +469,7 @@ def process(arguments):
         for entry in arguments.remove[0]:
             try:
                 if entry not in skipFiles:
-                    result['remove'][entry] = runner.cloud_file_remove(
+                    result['remove'][entry] = taskHandler.cloud_file_remove(
                         entry, container = arguments.specifyContainer)
                 else:
                     result['remove'][entry] = 'Skipped due to previous error.'
@@ -479,7 +479,7 @@ def process(arguments):
     if arguments.removeContainer:
         try:
             if arguments.removeContainer not in skipFiles:
-                result['removeContainer'][arguments.removeContainer] = runner.cloud_container_remove(
+                result['removeContainer'][arguments.removeContainer] = taskHandler.cloud_container_remove(
                     arguments.removeContainer)
             else:
                 result['removeContainer'][arguments.removeContainer] = 'Skipped due to previous error.'
