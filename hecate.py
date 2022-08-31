@@ -2,6 +2,7 @@
 
 import os
 import json
+from typing import Container
 import requests
 import argparse
 from pprint import pprint
@@ -71,7 +72,7 @@ class Hecate:
             headers['X-Auth-Token'] = toReturn
         return toReturn
 
-    def _openstack_upload_helper(self, filename, headers):
+    def _openstack_upload_helper(self, filename, headers, container= None):
         '''This method uploads files to Rackspace Openstack.
         It will automatically make the specified container for you if it does
         not exist.
@@ -80,7 +81,8 @@ class Hecate:
         with open(filename, 'rb') as message:
             data = message.read()
         url = self.getConfig('url')
-        container = self.getConfig('container')
+        if container is None:
+            container = self.getConfig('container')
         # create the container if it doesn't exist
         container_results = ''
         try:
@@ -103,10 +105,11 @@ class Hecate:
                                                    results.status_code))
         return 'Success'
 
-    def _openstack_download_helper(self, filename, headers):
+    def _openstack_download_helper(self, filename, headers, container=None):
         '''This method downloads files to Rackspace Openstack.'''
         url = self.getConfig('url')
-        container = self.getConfig('container')
+        if container is None:
+            container = self.getConfig('container')
         results = requests.get(url + '/' + container + '/' + filename,
                                headers=headers)
         if results.status_code != 200:
@@ -117,15 +120,51 @@ class Hecate:
             toWrite.write(results.content)
         return 'Success'
 
-    def _rs_openstack_download_helper(self, filename, headers):
-        # only auth is not reverse compatible with openstack v3 vs v2
-        return self._openstack_download_helper(filename, headers)
+    def _openstack_remove_helper(self, filename, headers, container=None):
+        '''This method remove files from Rackspace Openstack.'''
+        url = self.getConfig('url')
+        if container is None:
+            container = self.getConfig('container')
+        results = requests.delete(url + '/' + container + '/' + filename,
+                               headers=headers)
+        if results.status_code != 204:
+            raise ValueError('Got an unexpected return during upload:'
+                             ' %s. Code was %s' % (results.text,
+                                                   results.status_code))
+        return 'Success'
 
-    def _rs_openstack_upload_helper(self, filename, headers):
-        # only auth is not reverse compatible with openstack v3 vs v2
-        return self._openstack_upload_helper(filename, headers)
+    def _openstack_conatiner_helper(self, container, headers, remove=False):
+        '''This method creates and removes container from Rackspace Openstack.'''
+        url = self.getConfig('url')
+        if remove:
+            results = requests.delete(url + '/' + container,
+                                headers=headers)
+            if results.status_code not in [201, 202]:
+                raise ValueError('Got an unexpected return during container deletion:'
+                                ' %s. Code was %s' % (results.text,
+                                                    results.status_code))
+        else:
+            results = requests.put(url + '/' + container,
+                                headers=headers)
+            if results.status_code not in [201, 202]:
+                raise ValueError('Got an unexpected return during container creation:'
+                                ' %s. Code was %s' % (results.text,
+                                                    results.status_code))
+        return 'Success'
 
-    def cloud_file(self, filename, download=False):
+    def _rs_openstack_remove_helper(self, filename, headers, container=None):
+        # only auth is not reverse compatible with openstack v3 vs v2
+        return self._openstack_remove_helper(filename, headers, container)
+
+    def _rs_openstack_download_helper(self, filename, headers, container=None):
+        # only auth is not reverse compatible with openstack v3 vs v2
+        return self._openstack_download_helper(filename, headers, container)
+
+    def _rs_openstack_upload_helper(self, filename, headers, container=None):
+        # only auth is not reverse compatible with openstack v3 vs v2
+        return self._openstack_upload_helper(filename, headers, container)
+
+    def cloud_file(self, filename, download=False, container=None):
         '''This method quarterbacks cloud operations. It gets a helper to
         gather the auth token and then either calls the upload or download
         helper.'''
@@ -137,16 +176,37 @@ class Hecate:
             self._rs_openstack_auth_helper(headers)
             if download:
                 toReturn = self._rs_openstack_download_helper(filename,
-                                                              headers)
+                                                              headers, container)
             else:
-                toReturn = self._rs_openstack_upload_helper(filename, headers)
+                toReturn = self._rs_openstack_upload_helper(filename, headers, container)
         elif provider.lower() == 'openstack':
             self._openstack_auth_helper(headers)
             if download:
                 toReturn = self._openstack_download_helper(filename,
-                                                           headers)
+                                                           headers, container)
             else:
-                toReturn = self._openstack_upload_helper(filename, headers)
+                toReturn = self._openstack_upload_helper(filename, headers, container)
+            # supports Openstack on auth v3
+        else:
+            # the developer is using Rackspace Openstack; if others wish to
+            # write their own authentication helpers, pull requests are
+            # accepted.
+            raise NotImplementedError('The provider'
+                                      ' %s is not available.' % provider)
+        return toReturn
+
+    def cloud_file_remove(self, filename, container=None):
+        '''This method quarterbacks cloud operations. It gets a helper to
+        gather the auth token and then calls remove helper.'''
+        toReturn = ''
+        provider = self.getConfig('provider')
+        headers = self.getConfig('headers')
+        if provider.lower() == 'rackspace':
+            # supports Rackspace Openstack on auth v2
+            self._rs_openstack_auth_helper(headers)
+            toReturn = self._rs_openstack_remove_helper(filename, headers, container=None)
+        elif provider.lower() == 'openstack':
+            toReturn = self._openstack_remove_helper(filename, headers, container=None)
             # supports Openstack on auth v3
         else:
             # the developer is using Rackspace Openstack; if others wish to
@@ -261,13 +321,57 @@ class Hecate:
                                  'config file, or set hecate_%s' % (key, key))
         return value
 
+    def cloud_container_add(self, container_name):
+        '''Method to create container in cloud.'''
+        toReturn = ''
+        provider = self.getConfig('provider')
+        headers = self.getConfig('headers')
+        if provider.lower() == 'rackspace':
+            # supports Rackspace Openstack on auth v2
+            self._rs_openstack_auth_helper(headers)
+            toReturn = self._openstack_conatiner_helper(container_name, headers)
+        elif provider.lower() == 'openstack':
+            self._openstack_auth_helper(headers)
+            toReturn = self._openstack_conatiner_helper(container_name, headers)
+            # supports Openstack on auth v3
+        else:
+            # the developer is using Rackspace Openstack; if others wish to
+            # write their own authentication helpers, pull requests are
+            # accepted.
+            raise NotImplementedError('The provider'
+                                      ' %s is not available.' % provider)
+        return toReturn
+
+
+    def cloud_container_remove(self, container_name):
+        '''Method to remove container in cloud.'''
+        toReturn = ''
+        provider = self.getConfig('provider')
+        headers = self.getConfig('headers')
+        if provider.lower() == 'rackspace':
+            # supports Rackspace Openstack on auth v2
+            self._rs_openstack_auth_helper(headers)
+            toReturn = self._openstack_conatiner_helper(container_name, headers,
+                remove=True)
+        elif provider.lower() == 'openstack':
+            self._openstack_auth_helper(headers)
+            toReturn = self._openstack_conatiner_helper(container_name, headers,
+                remove=True)
+            # supports Openstack on auth v3
+        else:
+            # the developer is using Rackspace Openstack; if others wish to
+            # write their own authentication helpers, pull requests are
+            # accepted.
+            raise NotImplementedError('The provider'
+                                      ' %s is not available.' % provider)
+        return toReturn
 
 def process(arguments):
     '''Takes the command line arguments and calls the appropriate Hecate
      methods.'''
-    if not arguments.file:
-        return 'No files chosen, use -f, --file to specify filenames (space '\
-               'delineated).'
+    if not arguments.file and not arguments.remove and not arguments.newContainer \
+        and not arguments.removeContainer:
+        return 'Please choose at least one option.'
     runner = Hecate(arguments.config)
     result = {}
     skipFiles = []
@@ -279,6 +383,12 @@ def process(arguments):
         result['upload'] = {}
     if arguments.decrypt:
         result['decrypt'] = {}
+    if arguments.remove:
+        result['remove'] = {}
+    if arguments.newContainer:
+        result['newContainer'] = {}
+    if arguments.removeContainer:
+        result['removeContainer'] = {}
     # argparse returns a list of lists for files, filenames are
     # [ [text1, text2] ]
     # so slice the first (and only) value out of entry
@@ -289,56 +399,90 @@ def process(arguments):
     # If there are multiple actions on a download, the actions should be
     # performed on the downloaded file.
     # Thus, the order of operations is download, encrypt/decrypt, upload
-    for entry in arguments.file[0]:
-        if arguments.get:
-            try:
-                result['download'][entry] = runner.cloud_file(entry,
-                                                              download=True)
-            except Exception as e:
-                result['download'][entry] = 'Error: %s' % str(e)
-                skipFiles.append(entry)
-        if arguments.encrypt:
-            # if they specified a key, send it
-            keyfile = None  # if they did not sent -k, send None
-            if arguments.key and arguments.key != '':
-                # they specified -k and gave the filename
-                keyfile = arguments.key
-            elif arguments.key == '':
-                # they specified -k but did not gice a filename
-                keyfile = ''
-            try:
-                if entry not in skipFiles:
-                    result['encrypt'][entry] = runner.encrypt_file(
-                        entry, arguments.inplace, keyfile=keyfile)
-                else:
-                    result['encrypt'][entry] = 'Skipped due to previous error.'
-            except Exception as e:
-                result['encrypt'][entry] = 'Error: %s' % str(e)
-                skipFiles.append(entry)
-        if arguments.upload:
-            try:
-                if entry not in skipFiles:
-                    if arguments.inplace or not result.get('encrypt'):
-                        result['upload'][entry] = runner.cloud_file(entry)
-                    # they have not specified inplace but did specify encrypt
+    if arguments.file:
+        for entry in arguments.file[0]:
+            if arguments.get:
+                try:
+                    result['download'][entry] = runner.cloud_file(entry,
+                                                                download=True)
+                except Exception as e:
+                    result['download'][entry] = 'Error: %s' % str(e)
+                    skipFiles.append(entry)
+            if arguments.encrypt:
+                # if they specified a key, send it
+                keyfile = None  # if they did not sent -k, send None
+                if arguments.key and arguments.key != '':
+                    # they specified -k and gave the filename
+                    keyfile = arguments.key
+                elif arguments.key == '':
+                    # they specified -k but did not gice a filename
+                    keyfile = ''
+                try:
+                    if entry not in skipFiles:
+                        result['encrypt'][entry] = runner.encrypt_file(
+                            entry, arguments.inplace, keyfile=keyfile)
                     else:
-                        name = entry + '_encrypted'
-                        result['upload'][name] = runner.cloud_file(name)
-                else:  # skip the file
-                    result['upload'][entry] = 'Skipped due to previous error.'
-            except Exception as e:
-                result['upload'][entry] = 'Error: %s' % str(e)
-                skipFiles.append(entry)
-        if arguments.decrypt:
+                        result['encrypt'][entry] = 'Skipped due to previous error.'
+                except Exception as e:
+                    result['encrypt'][entry] = 'Error: %s' % str(e)
+                    skipFiles.append(entry)
+            if arguments.upload:
+                try:
+                    if entry not in skipFiles:
+                        if arguments.inplace or not result.get('encrypt'):
+                            result['upload'][entry] = runner.cloud_file(entry,
+                                container = arguments.specifyContainer)
+                        # they have not specified inplace but did specify encrypt
+                        else:
+                            name = entry + '_encrypted'
+                            result['upload'][name] = runner.cloud_file(name,
+                                container = arguments.specifyContainer)
+                    else:  # skip the file
+                        result['upload'][entry] = 'Skipped due to previous error.'
+                except Exception as e:
+                    result['upload'][entry] = 'Error: %s' % str(e)
+                    skipFiles.append(entry)
+            if arguments.decrypt:
+                try:
+                    if entry not in skipFiles:
+                        result['decrypt'][entry] = runner.decrypt_file(
+                            entry, arguments.key, arguments.inplace)
+                    else:
+                        result['encrypt'][entry] = 'Skipped due to previous error.'
+                except Exception as e:
+                    result['decrypt'][entry] = 'Error: %s' % str(e)
+                    skipFiles.append(entry)
+    if arguments.remove:
+        for entry in arguments.remove[0]:
             try:
                 if entry not in skipFiles:
-                    result['decrypt'][entry] = runner.decrypt_file(
-                        entry, arguments.key, arguments.inplace)
+                    result['remove'][entry] = runner.cloud_file_remove(
+                        entry, container = arguments.specifyContainer)
                 else:
-                    result['encrypt'][entry] = 'Skipped due to previous error.'
+                    result['remove'][entry] = 'Skipped due to previous error.'
             except Exception as e:
-                result['decrypt'][entry] = 'Error: %s' % str(e)
+                result['remove'][entry] = 'Error: %s' % str(e)
                 skipFiles.append(entry)
+    if arguments.newContainer:
+        try:
+            if arguments.newContainer not in skipFiles:
+                result['newContainer'][arguments.newContainer] = runner.cloud_container_add(
+                    arguments.newContainer)
+            else:
+                result['newContainer'][arguments.newContainer] = 'Skipped due to previous error.'
+        except Exception as e:
+            result['newContainer'][arguments.newContainer] = 'Error: %s' % str(e)
+            skipFiles.append(arguments.newContainer)
+    if arguments.removeContainer:
+        try:
+            if arguments.removeContainer not in skipFiles:
+                result['removeContainer'][arguments.removeContainer] = runner.cloud_container_remove(
+                    arguments.removeContainer)
+            else:
+                result['removeContainer'][arguments.removeContainer] = 'Skipped due to previous error.'
+        except Exception as e:
+            result['removeContainer'][arguments.removeContainer] = 'Error: %s' % str(e)
+            skipFiles.append(arguments.removeContainer)
     return result
 
 
@@ -360,6 +504,8 @@ if __name__ == "__main__":
                           help='Flag; download the file.')
     parser.add_argument('-f', '--file', action='append', nargs='+',
                         help='File paths to action on.')
+    parser.add_argument('-r', '--remove', action='append', nargs='+',
+                        help='File paths to remove.')
     # const means that if -k is passed with no value, we can detect it
     parser.add_argument('-k', '--key',
                         help='The key to use during encryption or decryption. '
@@ -375,5 +521,11 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--config',
                         help='Json credentials file required for uploads '
                              'and downloads.')
+    parser.add_argument('-nc', '--newContainer',
+                        help='Creates new container for your files.')
+    parser.add_argument('-rc', '--removeContainer',
+                        help='Delete given container from Storage.')
+    parser.add_argument('-sc', '--specifyContainer',
+                        help='Spicify container for files.')
     arguments = parser.parse_args()
     pprint(process(arguments))
