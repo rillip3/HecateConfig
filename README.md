@@ -74,8 +74,10 @@ Remove file:
 python3 hecate.py -r testfile1 -c config.json
 
 # Usage
-usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]] [-r FILE [FILE ...]] [-k [KEY]] [-i] [-sc CONTAINER_NAME] [-rc CONTAINER_NAME]
-                 [-c CONFIG]
+usage: hecate.py [-h] [-e | -d] [-u | -g] [-f FILE [FILE ...]]
+                 [-r REMOVE [REMOVE ...]] [-k [KEY]] [-i] [-c CONFIG]
+                 [-nc NEWCONTAINER] [-rc REMOVECONTAINER]
+                 [-sc SPECIFYCONTAINER]
 
 A utility to encrypt/decrypt/upload files safely
 
@@ -87,6 +89,8 @@ optional arguments:
   -g, --get             Flag; download the file.
   -f FILE [FILE ...], --file FILE [FILE ...]
                         File paths to action on.
+  -r REMOVE [REMOVE ...], --remove REMOVE [REMOVE ...]
+                        File paths to remove.
   -k [KEY], --key [KEY]
                         The key to use during encryption or decryption. If
                         specified without a value, environment variables will
@@ -99,12 +103,12 @@ optional arguments:
   -c CONFIG, --config CONFIG
                         Json credentials file required for uploads and
                         downloads.
-  -r FILE [FILE ...], --remove FILE [FILE ...]
-                        File to remove.
-  -rc CONTAINER_NAME, --removeContainer CONTAINER_NAME
-                        Container to remove.
-  -sc CONTAINER_NAME, --specifyContainer CONTAINER_NAME
-                        Container to use when uploading file(s) will override config.json's container key.
+  -nc NEWCONTAINER, --newContainer NEWCONTAINER
+                        Creates new container for your files.
+  -rc REMOVECONTAINER, --removeContainer REMOVECONTAINER
+                        Delete given container from Storage.
+  -sc SPECIFYCONTAINER, --specifyContainer SPECIFYCONTAINER
+                        Spicify container for files.
 
 # LICENSE
 

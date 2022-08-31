@@ -369,8 +369,8 @@ class Hecate:
 def process(arguments):
     '''Takes the command line arguments and calls the appropriate Hecate
      methods.'''
-    if not arguments.file and not arguments.remove and not arguments.newContainer \
-        and not arguments.removeContainer:
+    if not (arguments.file or arguments.remove or arguments.newContainer
+            or arguments.removeContainer):
         return 'Please choose at least one option.'
     runner = Hecate(arguments.config)
     result = {}
@@ -399,6 +399,19 @@ def process(arguments):
     # If there are multiple actions on a download, the actions should be
     # performed on the downloaded file.
     # Thus, the order of operations is download, encrypt/decrypt, upload
+    # Remove and create new container were added later and are a side stream
+    # new container has to come before upload, or you'll upload to a container
+    # that doesn't exist. Remove container is a deletion, and should be done last.
+    if arguments.newContainer:
+        try:
+            if arguments.newContainer not in skipFiles:
+                result['newContainer'][arguments.newContainer] = runner.cloud_container_add(
+                    arguments.newContainer)
+            else:
+                result['newContainer'][arguments.newContainer] = 'Skipped due to previous error.'
+        except Exception as e:
+            result['newContainer'][arguments.newContainer] = 'Error: %s' % str(e)
+            skipFiles.append(arguments.newContainer)
     if arguments.file:
         for entry in arguments.file[0]:
             if arguments.get:
@@ -463,16 +476,6 @@ def process(arguments):
             except Exception as e:
                 result['remove'][entry] = 'Error: %s' % str(e)
                 skipFiles.append(entry)
-    if arguments.newContainer:
-        try:
-            if arguments.newContainer not in skipFiles:
-                result['newContainer'][arguments.newContainer] = runner.cloud_container_add(
-                    arguments.newContainer)
-            else:
-                result['newContainer'][arguments.newContainer] = 'Skipped due to previous error.'
-        except Exception as e:
-            result['newContainer'][arguments.newContainer] = 'Error: %s' % str(e)
-            skipFiles.append(arguments.newContainer)
     if arguments.removeContainer:
         try:
             if arguments.removeContainer not in skipFiles:
